@@ -109,11 +109,12 @@ showGrid :: State -> String
 showGrid s = concat $ showRow s <$> [0 .. (fst dimensions)]
 
 changeDirection :: Maybe Char -> State -> State
-changeDirection (Just 'a') s = s { direction = Left }
-changeDirection (Just 'd') s = s { direction = Right }
-changeDirection (Just 'w') s = s { direction = Up }
-changeDirection (Just 's') s = s { direction = Down }
-changeDirection _          s = s
+changeDirection ch s = case ch of
+  Just 'a' -> s { direction = Left }
+  Just 'd' -> s { direction = Right }
+  Just 'w' -> s { direction = Up }
+  Just 's' -> s { direction = Down }
+  _        -> s
 
 ifReadyDo :: Handle -> IO a -> IO (Maybe a)
 ifReadyDo hnd action = hReady hnd >>= \case
