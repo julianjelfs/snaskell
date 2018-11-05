@@ -63,6 +63,7 @@ executable snaskell
   build-depends:       base >=4.9 && <4.10
                         , ansi-terminal
                         , transformers
+                        , random
   
   -- Directories containing source files.
   hs-source-dirs:      src
