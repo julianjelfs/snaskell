@@ -2,23 +2,16 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Main where
 
-import           Control.Concurrent             ( threadDelay )
-import           Control.Monad                  ( forever )
-import           Control.Monad.IO.Class         ( liftIO )
-import           Control.Monad.Trans.State      ( StateT
-                                                , evalStateT
-                                                , get
-                                                , modify
-                                                )
-import           Data.Monoid                    ( (<>) )
-import           Prelude                 hiding ( Left
-                                                , Right
-                                                )
-import qualified System.Console.ANSI           as Term
-import           System.IO                      ( Handle
-                                                , hReady
-                                                , stdin
-                                                )
+import           Control.Applicative       (pure)
+import           Control.Concurrent        (threadDelay)
+import           Control.Monad             (forever)
+import           Control.Monad.IO.Class    (liftIO)
+import           Control.Monad.Trans.State (StateT, evalStateT, get, modify)
+import           Data.Functor              ((<$>))
+import           Data.Monoid               ((<>))
+import           Prelude                   hiding (Left, Right)
+import qualified System.Console.ANSI       as Term
+import           System.IO                 (Handle, hReady, stdin)
 
 main :: IO ()
 main = evalStateT (forever loop) initialState
@@ -50,39 +43,27 @@ initialState =
 loop :: StateT State IO ()
 loop = do
   k <- liftIO $ stdin `ifReadyDo` getChar
-  _ <- modify (changeDirection k)
-  _ <- modify moveSnake
-  s <- get
-  liftIO $ drawGrid s
+  _ <- modify (moveSnake . changeDirection k)
+  get >>= liftIO . drawGrid
 
 moveSnake :: State -> State
-moveSnake s@State { snake, direction = Up }    = s { snake = moveUp snake }
-moveSnake s@State { snake, direction = Down }  = s { snake = moveDown snake }
-moveSnake s@State { snake, direction = Left }  = s { snake = moveLeft snake }
-moveSnake s@State { snake, direction = Right } = s { snake = moveRight snake }
+moveSnake s@State { snake, direction } =
+    case direction of
+        Up    -> move snake (\(x, y) -> (x, y - 1))
+        Down  -> move snake (\(x, y) -> (x, y + 1))
+        Left  -> move snake (\(x, y) -> (x - 1, y))
+        Right -> move snake (\(x, y) -> (x + 1, y))
+    where
+        move :: Snake -> ((Int, Int) -> (Int, Int)) -> State
+        move (Snake l@(h : _)) mover = s { snake = Snake (mover h : allButLast l) }
+        move _ _ = s
 
-moveUp :: Snake -> Snake
-moveUp (Snake l@((x, y) : _)) = Snake ((x, y - 1) : allButLast l)
-
-moveDown :: Snake -> Snake
-moveDown (Snake l@((x, y) : _)) = Snake ((x, y + 1) : allButLast l)
-
-moveLeft :: Snake -> Snake
-moveLeft (Snake l@((x, y) : _)) = Snake ((x - 1, y) : allButLast l)
-
-moveRight :: Snake -> Snake
-moveRight (Snake l@((x, y) : _)) = Snake ((x + 1, y) : allButLast l)
-
-allButLast :: [a] -> [a]
-allButLast xs = take (length xs - 1) xs
+        allButLast :: [a] -> [a]
+        allButLast xs = take (length xs - 1) xs
 
 drawGrid :: State -> IO ()
-drawGrid s = do
-  _ <- clearScreen
-  _ <- putStrLn (showGrid s)
-  -- _ <- print (show s)
-  _ <- threadDelay 100000
-  pure ()
+drawGrid s =
+    clearScreen >> putStrLn (showGrid s) >> threadDelay 100000
 
 showPoint :: State -> Int -> Int -> Char
 showPoint State { snake = Snake segments, food = Food (fx, fy) } y x
